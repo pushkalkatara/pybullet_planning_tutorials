@@ -13,9 +13,9 @@ from pybullet_planning import create_obj, create_attachment, Attachment
 from pybullet_planning import link_from_name, get_link_pose, get_moving_links, get_link_name, get_disabled_collisions, \
     get_body_body_disabled_collisions, has_link, are_links_adjacent
 from pybullet_planning import get_num_joints, get_joint_names, get_movable_joints, set_joint_positions, joint_from_name, \
-    joints_from_names, get_sample_fn, plan_joint_motion
+    joints_from_names, get_sample_fn, sub_inverse_kinematics
 from pybullet_planning import dump_world, set_pose
-from pybullet_planning import get_collision_fn, get_floating_body_collision_fn, expand_links, create_box
+from pybullet_planning import get_collision_fn, get_floating_body_collision_fn, expand_links, create_box, create_cylinder
 from pybullet_planning import pairwise_collision, pairwise_collision_info, draw_collision_diagnosis, body_collision_info
 
 HERE = os.path.dirname(__file__)
@@ -45,11 +45,17 @@ def panda_demo(viewer=True):
 
     # create a box to be picked up
     # see: https://pybullet-planning.readthedocs.io/en/latest/reference/generated/pybullet_planning.interfaces.env_manager.create_box.html#pybullet_planning.interfaces.env_manager.create_box
-    block = create_box(0.2, 0.2, 0.2)
-    block_x = 0.2
-    block_y = 0.3
+    block = create_box(0.2, 0.2, 0.4)
+    block_x = 0.4
+    block_y = 0.2
     block_z = 0.0
     set_pose(block, Pose(Point(x=block_x, y=block_y, z=block_z), Euler(yaw=np.pi/2)))
+
+    block1 = create_cylinder(0.1, 0.4)
+    block1_x = 0.8
+    block1_y = -0.2
+    block1_z = 0.0
+    set_pose(block1, Pose(Point(x=block1_x, y=block1_y, z=block1_z), Euler(yaw=np.pi/2)))
 
     ik_joints = get_movable_joints(robot)
     ik_joint_names = get_joint_names(robot, ik_joints)
@@ -57,7 +63,8 @@ def panda_demo(viewer=True):
     # * if a subset of joints is used, use:
     #panda_joints = joints_from_names(robot, ik_joint_names[:7]) # this will disable the gantry-x joint
     cprint('Used joints: {}'.format(get_joint_names(robot, ik_joints)), 'yellow')
-
+    ee_link = get_link_name(robot, 11)
+    print(ee_link)
     # * get a joint configuration sample function:
     # it separately sample each joint value within the feasible range
     sample_fn = get_sample_fn(robot, ik_joints)
@@ -77,23 +84,25 @@ def panda_demo(viewer=True):
     print('Disabled collision links needs to be given (can be parsed from a SRDF via compas_fab)')
     for _ in range(5):
         print('='*10)
-
+        '''
         q1 = list(sample_fn())
         # intentionly make the robot needs to cross the collision object
         # let it start from the right side
         q1[0] = 0.
         q1[1] = 0
-
-        set_joint_positions(robot, ik_joints, q1)
-        cprint('Sampled start conf: {}'.format(q1), 'cyan')
-        wait_for_user()
+        '''
+        #set_joint_positions(robot, ik_joints, q1)
+        #cprint('Sampled start conf: {}'.format(q1), 'cyan')
+        #wait_for_user()
 
         # let it ends at the left side
+        '''
         q2 = list(sample_fn())
         q2[0] = 0.5
         q2[1] = 0.5
         cprint('Sampled end conf: {}'.format(q2), 'cyan')
-
+        '''
+        '''
         path = plan_joint_motion(robot, ik_joints, q2, obstacles=[block], self_collisions=False,
             custom_limits={ik_joints[0]:[0.0, 1.2]})
         if path is None:
@@ -101,7 +110,9 @@ def panda_demo(viewer=True):
             continue
         else:
             wait_for_user('a motion plan is found! Press enter to start simulating!')
-
+        '''
+        sol = sub_inverse_kinematics(robot, ik_joints[0], 11, ([0.6, 0.0, 0.3], [1,0,0,0]))
+        print(sol)
         # adjusting this number will adjust the simulation speed
         time_step = 0.03
         for conf in path:
